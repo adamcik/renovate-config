@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "rangeStrategy": "update-lockfile",
+  "packageRules": [
+    {
+      "description": "Automerge routine application updates after repository protections pass",
+      "matchUpdateTypes": ["digest", "pin", "patch", "minor", "lockFileMaintenance"],
+      "automerge": true,
+      "automergeType": "pr"
+    }
+  ]
+}
