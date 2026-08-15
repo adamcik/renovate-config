@@ -2,16 +2,47 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:best-practices",
-    "group:allNonMajor",
-    "schedule:monthly",
-    ":maintainLockFilesMonthly"
+    "schedule:monthly"
   ],
   "timezone": "Europe/Oslo",
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "strict",
-  "prCreation": "not-pending",
   "prConcurrentLimit": 3,
   "labels": ["dependencies"],
+  "nix": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Git refs do not provide release timestamps",
+      "matchDatasources": ["git-refs"],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
+      "description": "Group patch updates by manager",
+      "matchUpdateTypes": ["patch"],
+      "groupName": "{{manager}} patch updates"
+    },
+    {
+      "description": "Group digest updates by manager",
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "groupName": "{{manager}} digest updates"
+    },
+    {
+      "description": "Group version pins by manager",
+      "matchUpdateTypes": ["pin"],
+      "groupName": "{{manager}} version pins"
+    },
+    {
+      "description": "Group minor updates by manager",
+      "matchUpdateTypes": ["minor"],
+      "groupName": "{{manager}} minor updates"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 0-5 1-7 * 6"]
+  },
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "enabled": true,

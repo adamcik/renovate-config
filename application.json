@@ -1,12 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "rangeStrategy": "update-lockfile",
+  "extends": ["github>adamcik/renovate-config"],
+  "rangeStrategy": "replace",
   "packageRules": [
     {
-      "description": "Automerge routine application updates after repository protections pass",
-      "matchUpdateTypes": ["digest", "pin", "patch", "minor", "lockFileMaintenance"],
-      "automerge": true,
-      "automergeType": "pr"
+      "description": "Apply the application range policy to development dependencies",
+      "matchDepTypes": ["devDependencies", "dev-dependencies", "dev"],
+      "rangeStrategy": "replace"
     }
   ]
 }

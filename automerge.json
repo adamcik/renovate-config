@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "platformAutomerge": false,
+  "ignoreTests": false,
+  "lockFileMaintenance": {
+    "automerge": true,
+    "automergeType": "pr"
+  },
+  "packageRules": [
+    {
+      "description": "Automerge lock-only digest updates after CI passes",
+      "matchManagers": ["dockerfile", "github-actions", "nix"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "automerge": true,
+      "automergeType": "pr"
+    }
+  ]
+}

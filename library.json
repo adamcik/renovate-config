@@ -1,4 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [":preserveSemverRanges"]
+  "extends": ["github>adamcik/renovate-config", ":preserveSemverRanges"]
 }
