@@ -29,3 +29,4 @@ jobs:
           application.json
           library.json
           automerge.json
+          renovate.json
