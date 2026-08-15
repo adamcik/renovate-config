@@ -1,0 +1,31 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  renovate-config:
+    name: Renovate config
+    runs-on: ubuntu-latest
+    container: renovate/renovate:44.30.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate presets
+        run: >-
+          renovate-config-validator
+          --strict
+          --no-global
+          default.json
+          application.json
+          library.json
+          automerge.json
