@@ -14,7 +14,7 @@ jobs:
     name: Renovate config
     runs-on: ubuntu-latest
     container:
-      image: renovate/renovate:44.30.2@sha256:f2ecbe84676cc592c312ef919ea29571b91d05ae55f07fc5fec54d444153d225
+      image: ghcr.io/renovatebot/renovate:44.30.3@sha256:d3d60a87bab73203327dd664f94f11e83091441ee4964c920662d83023446395
       options: --user 0
     steps:
       - name: Checkout
@@ -32,3 +32,8 @@ jobs:
           library.json
           automerge.json
           renovate.json
+
+      - name: Test grouping policy
+        env:
+          RENOVATE_PACKAGE_DIR: /usr/local/renovate
+        run: node tests/grouping.mjs

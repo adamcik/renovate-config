@@ -12,6 +12,22 @@
   "nix": {
     "enabled": true
   },
+  "gomod": {
+    "additionalBranchPrefix": "{{{packageFile}}}-",
+    "separateMinorPatch": false
+  },
+  "npm": {
+    "additionalBranchPrefix": "{{{packageFile}}}-",
+    "separateMinorPatch": false
+  },
+  "pep621": {
+    "additionalBranchPrefix": "{{{packageFile}}}-",
+    "separateMinorPatch": false
+  },
+  "cargo": {
+    "additionalBranchPrefix": "{{{packageFile}}}-",
+    "separateMinorPatch": false
+  },
   "packageRules": [
     {
       "description": "Git refs do not provide release timestamps",
@@ -37,6 +53,23 @@
       "description": "Group minor updates by manager",
       "matchUpdateTypes": ["minor"],
       "groupName": "{{manager}} minor updates"
+    },
+    {
+      "description": "Group routine minor and patch updates by target manager",
+      "matchManagers": ["gomod", "npm", "pep621", "cargo"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "{{manager}} dependencies",
+      "groupSlug": "{{manager}}-dependencies",
+      "group": {
+        "branchTopic": "{{{groupSlug}}}"
+      }
+    },
+    {
+      "description": "Configure target-manager security commits",
+      "matchManagers": ["gomod", "npm", "pep621", "cargo"],
+      "matchJsonata": ["isVulnerabilityAlert = true"],
+      "commitMessageTopic": "{{manager}} dependencies",
+      "commitMessageExtra": ""
     }
   ],
   "lockFileMaintenance": {
@@ -47,6 +80,8 @@
   "vulnerabilityAlerts": {
     "enabled": true,
     "labels": ["security"],
-    "automerge": false
+    "automerge": false,
+    "minimumGroupSize": 1,
+    "branchTopic": "{{#if (includes (toArray \"gomod\" \"npm\" \"pep621\" \"cargo\") manager)}}{{{manager}}}-security{{else}}{{{datasource}}}-{{{depNameSanitized}}}-vulnerability{{/if}}"
   }
 }
