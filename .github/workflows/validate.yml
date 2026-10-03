@@ -9,10 +9,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   renovate-config:
     name: Renovate config
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     container:
       image: ghcr.io/renovatebot/renovate:44.30.3@sha256:d3d60a87bab73203327dd664f94f11e83091441ee4964c920662d83023446395
       options: --user 0
@@ -37,3 +42,15 @@ jobs:
         env:
           RENOVATE_PACKAGE_DIR: /usr/local/renovate
         run: node tests/grouping.mjs
+
+  nix:
+    name: Nix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: adamcik/nix-tooling/actions/nix-setup@03474cbd37cedc82f533d69a65cdd23237b5798e
+      - run: nix fmt -- --ci
+      - run: nix flake check
