@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-    nix-tooling.url = "github:adamcik/nix-tooling/03474cbd37cedc82f533d69a65cdd23237b5798e";
+    nix-tooling.url = "github:adamcik/nix-tooling";
     nix-tooling.inputs.nixpkgs.follows = "nixpkgs";
   };
 
