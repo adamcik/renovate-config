@@ -45,7 +45,9 @@ merge gate; a workflow that merely runs is not a required check.
 This preset does not grant approval, change branch protections, or require the approver
 to be human. Keep approval under human control until a narrowly scoped approval bot is
 deliberately introduced. GitHub owns merge timing, so Renovate's `automergeSchedule`
-does not delay a platform-native merge once its requirements are met.
+does not delay a platform-native merge once its requirements are met. Conflicts or
+required updates from the base branch can still need a Renovate rerun, new CI results,
+and fresh approval of the latest push.
 
 The baseline, application, and library profiles do not opt repositories in. Repositories
 with different merge conventions, such as the merge-only `sbctl-debian` fork, should not
