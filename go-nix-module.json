@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Refresh artifacts for Go module {{arg0}} and Nix flake packages {{arg1}}",
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "matchJsonata": [
+        "packageFile = \"{{arg0}}/go.mod\" or (packageFile = \"go.mod\" and \"{{arg0}}\" = \".\")"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "/opt/nix-post-upgrade update-go-checksums {{arg0}}",
+          "/opt/nix-post-upgrade update-go-hashes {{arg1}}",
+          "/opt/nix-post-upgrade fmt"
+        ],
+        "executionMode": "branch",
+        "fileFilters": ["**/*"]
+      }
+    }
+  ]
+}

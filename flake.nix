@@ -32,9 +32,12 @@
               chmod -R u+w source
               cd source
               renovate-config-validator --strict --no-global \
-                default.json application.json library.json automerge.json renovate.json
+                default.json application.json library.json automerge.json \
+                go-nix.json go-nix-module.json renovate.json
               RENOVATE_PACKAGE_DIR=${pkgs.renovate}/lib/node_modules/renovate \
                 node tests/grouping.mjs
+              RENOVATE_PACKAGE_DIR=${pkgs.renovate}/lib/node_modules/renovate \
+                node tests/go-nix.mjs
               touch "$out"
             '';
 

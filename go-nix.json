@@ -1,0 +1,5 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Refresh artifacts for a root Go module packaged by the default Nix flake package",
+  "extends": ["./go-nix-module(.,default)"]
+}
