@@ -95,9 +95,51 @@ default security topic. Raw manifest paths keep `foo/bar/go.mod` distinct from
 collisions.
 
 Existing dependency PRs may be replaced when Renovate next processes a repository after
-this policy changes. Checksum and Nix hash generation still belongs in local
-`postUpgradeTasks`, using `executionMode: "branch"` to run once for the complete update.
-This preset neither regenerates hashes nor changes runner permissions.
+this policy changes. The baseline does not regenerate checksums or Nix hashes and does
+not change runner permissions. Artifact generation requires explicit opt-in below.
+
+### Go packages built with Nix
+
+Add `go-nix` only when the repository has a root `go.mod` and its default flake package
+uses `buildGoModule` with a literal `vendorHash` in a tracked Nix file:
+
+```json
+{
+  "extends": [
+    "github>adamcik/renovate-config:application",
+    "github>adamcik/renovate-config:go-nix"
+  ]
+}
+```
+
+Neither the baseline nor the application or library profiles include this preset. It
+requires the allowlisted `/opt/nix-post-upgrade` launcher from
+`adamcik/renovate-runner`. After each Go update branch, it downloads module checksums,
+refreshes vendor hashes, builds the selected packages, and formats the repository. Broad
+artifact filters retain checksum, hash, and formatter changes, including unrelated
+formatting changes.
+
+Use `go-nix-module(module-directory,package-attributes)` for nested modules or other
+package targets. Separate multiple package attributes with spaces:
+
+```json
+{
+  "extends": [
+    "github>adamcik/renovate-config:application",
+    "github>adamcik/renovate-config:go-nix-module(packages/caddy,caddy)"
+  ]
+}
+```
+
+For a root module with two package targets, use `go-nix-module(.,default demo)`. Each
+instance matches only its module's `go.mod`; add one instance per independent module.
+Keep module-specific grouping and compatibility constraints in local rules. The launcher
+validates module directories and package attributes before executing them.
+
+`postUpgradeTasks` is not mergeable in Renovate 44. Remove matching local artifact tasks
+when adopting this preset, or replace the whole command sequence intentionally. Failed
+artifacts may need the PR's rebase/retry checkbox after the underlying problem is fixed;
+a successful runner invocation alone does not mean those artifacts were regenerated.
 
 ### Workspaces
 
