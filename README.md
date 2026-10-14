@@ -16,11 +16,11 @@ Deployed software should use the application profile:
 }
 ```
 
-| Profile       | Use for                                     | Version-range policy                                                           | Automerge                                                                                              |
-| ------------- | ------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `application` | Services, apps, CLIs, system configurations | Advance the declared range when the latest release falls outside it            | Off by default                                                                                         |
-| `library`     | Packages consumed by other projects         | Preserve published ranges; lower bounds represent the oldest supported version | Off by default                                                                                         |
-| `automerge`   | An opt-in composed with either profile      | No range changes                                                               | Lock-file maintenance and lock-only Dockerfile, GitHub Actions, and Nix digest updates after CI passes |
+| Profile       | Use for                                     | Version-range policy                                                           | Automerge                                                                            |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `application` | Services, apps, CLIs, system configurations | Advance the declared range when the latest release falls outside it            | Off by default                                                                       |
+| `library`     | Packages consumed by other projects         | Preserve published ranges; lower bounds represent the oldest supported version | Off by default                                                                       |
+| `automerge`   | An opt-in composed with either profile      | No range changes                                                               | GitHub-native rebase auto-merge for all updates, subject to required approval and CI |
 
 ```json
 {
@@ -31,8 +31,26 @@ Deployed software should use the application profile:
 }
 ```
 
-`automerge` deliberately excludes manifest version changes. Those changes alter the
-declared compatibility policy and require review.
+`automerge` includes manifest version changes, major updates, lock-file maintenance, and
+security fixes. It enables GitHub auto-merge while creating or updating the PR, so
+GitHub can merge after approval and required CI without another Renovate run. Configured
+reviewers and assignees are still requested for automerging PRs.
+
+Before opting in, enable repository auto-merge and require approval of the latest push
+and named CI checks in GitHub's branch rules. Pin checks to their expected GitHub App
+where appropriate. Give neither Renovate nor an approval helper a ruleset bypass.
+`ignoreTests: false` is retained, but GitHub's required checks are the authoritative
+merge gate; a workflow that merely runs is not a required check.
+
+This preset does not grant approval, change branch protections, or require the approver
+to be human. Keep approval under human control until a narrowly scoped approval bot is
+deliberately introduced. GitHub owns merge timing, so Renovate's `automergeSchedule`
+does not delay a platform-native merge once its requirements are met.
+
+The baseline, application, and library profiles do not opt repositories in. Repositories
+with different merge conventions, such as the merge-only `sbctl-debian` fork, should not
+extend this preset. Apply and verify required CI rules for existing consumers before
+rolling out a broader automerge policy.
 
 ## Baseline policy
 

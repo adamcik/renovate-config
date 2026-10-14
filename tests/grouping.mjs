@@ -487,5 +487,34 @@ assert.equal(
   "automerge policy still applies to docker digests",
 );
 
+for (const source of ["github", "osv", "both"]) {
+  const reviewedBranches = await branches(source, config(automergePolicy));
+  assert.ok(reviewedBranches.length > 0);
+  for (const branch of reviewedBranches) {
+    assert.equal(branch.automerge, true, `${source}: ${branch.branchName} opts in`);
+    assert.equal(branch.automergeType, "pr");
+    assert.equal(branch.platformAutomerge, true);
+    assert.equal(branch.automergeStrategy, "rebase");
+    assert.equal(branch.ignoreTests, false);
+    assert.equal(branch.assignAutomerge, true);
+  }
+  assert.ok(reviewedBranches.some((branch) => branch.isVulnerabilityAlert));
+  assert.ok(
+    reviewedBranches.some((branch) =>
+      branch.upgrades.some((upgrade) => upgrade.updateType === "major"),
+    ),
+    "major updates also wait for GitHub's review and check requirements",
+  );
+}
+const lockMaintenance = mergeChildConfig(automergePolicy, automergePolicy.lockFileMaintenance);
+assert.equal(lockMaintenance.automerge, true);
+assert.equal(lockMaintenance.automergeType, "pr");
+assert.equal(lockMaintenance.platformAutomerge, true);
+for (const profile of ["default.json", "application.json", "library.json"]) {
+  const policy = JSON.parse(await readFile(profile, "utf8"));
+  assert.notEqual(policy.automerge, true, `${profile} does not opt repositories in`);
+  assert.ok(!policy.extends?.some((preset) => preset.includes(":automerge")));
+}
+
 // These fixtures exercise branch policy only; Renovate 44.30.3 cannot discover workspaces from metadata.
 console.log(`Grouping regression checks passed for Renovate ${pkg.version}.`);
