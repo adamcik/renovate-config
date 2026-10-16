@@ -1,0 +1,20 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Refresh Nix npm dependency package {{arg1}} for npm manifest directory {{arg0}}",
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "matchJsonata": [
+        "packageFile = \"{{arg0}}/package.json\" or (packageFile = \"package.json\" and \"{{arg0}}\" = \".\")"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "/opt/nix-post-upgrade update-npm-hash {{arg1}}",
+          "/opt/nix-post-upgrade fmt"
+        ],
+        "executionMode": "branch",
+        "fileFilters": ["**/*"]
+      }
+    }
+  ]
+}

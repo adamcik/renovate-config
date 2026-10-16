@@ -38,6 +38,7 @@ jobs:
           automerge.json
           go-nix.json
           go-nix-module.json
+          npm-nix.json
           renovate.json
 
       - name: Test grouping policy
@@ -49,6 +50,11 @@ jobs:
         env:
           RENOVATE_PACKAGE_DIR: /usr/local/renovate
         run: node tests/go-nix.mjs
+
+      - name: Test opt-in npm artifact policy
+        env:
+          RENOVATE_PACKAGE_DIR: /usr/local/renovate
+        run: node tests/npm-nix.mjs
 
   nix:
     name: Nix

@@ -118,6 +118,36 @@ Existing dependency PRs may be replaced when Renovate next processes a repositor
 this policy changes. The baseline does not regenerate checksums or Nix hashes and does
 not change runner permissions. Artifact generation requires explicit opt-in below.
 
+### npm dependencies fetched with Nix
+
+Use `npm-nix(manifest-directory,dependency-package)` when npm's lockfile also feeds a
+Nix fixed-output dependency derivation:
+
+```json
+{
+  "extends": [
+    "github>adamcik/renovate-config:application",
+    "github>adamcik/renovate-config:npm-nix(web,npm-deps)"
+  ]
+}
+```
+
+Expose the `fetchNpmDeps` derivation as `packages.<system>.npm-deps` (or expose
+`buildNpmPackage`'s `npmDeps` under that name). The second parameter names this
+dependency derivation, not the application package. Use `.` for a root npm manifest.
+Each preset instance matches only that directory's `package.json`, including security
+updates; add one instance per independent npm lockfile.
+
+This opt-in requires `adamcik/renovate-runner`'s `update-npm-hash` launcher operation.
+After npm updates its lockfile, the launcher discovers the dependency hash, updates one
+literal `hash = "sha256-…";` or `npmDepsHash = "sha256-…";` assignment in a tracked Nix
+file, verifies the dependency build, then formats the branch. The assignment must be on
+one line and uniquely match the old hash; computed, shared, or ambiguous assignments
+fail rather than being guessed. Do not add this preset to repositories using another
+runner without equivalent support. Remove matching local artifact tasks:
+`postUpgradeTasks` is not mergeable in Renovate 44. The preset includes the runner's
+default formatting step.
+
 ### Go packages built with Nix
 
 Add `go-nix` only when the repository has a root `go.mod` and its default flake package
