@@ -74,7 +74,7 @@
   ],
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["* 0-5 1-7 * 6"]
+    "schedule": ["* * 1-7 * 6"]
   },
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
