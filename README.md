@@ -249,13 +249,15 @@ runs weekly while inheriting dependency grouping:
     "github>adamcik/renovate-config:application",
     "github>adamcik/renovate-config:automerge"
   ],
-  "schedule": ["before 06:00 on Saturday"],
+  "schedule": ["* * * * 6"],
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 06:00 on Saturday"]
+    "schedule": ["* * * * 6"]
   }
 }
 ```
+
+Use a full-day window so delayed runner starts do not skip the week's updates.
 
 Local rules do not bypass CI, scheduling, or branch protection unless they explicitly
 override those settings.
