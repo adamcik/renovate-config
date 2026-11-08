@@ -32,28 +32,39 @@ Deployed software should use the application profile:
 ```
 
 `automerge` opts in patch updates, version pins, digest updates, minor updates from
-versions at or above 1.0.0, and lock-file maintenance. Major updates, pre-1.0 minor
-updates, and security fixes remain manual. Pre-1.0 minor updates have their own group
-per manager and project so they do not hold up eligible routine updates. Unknown or
+versions at or above 1.0.0, lock-file maintenance, and security fixes. Routine major
+updates and pre-1.0 minor updates remain manual. Pre-1.0 minor updates have their own
+group per manager and project so they do not hold up eligible routine updates. Unknown or
 unsupported current versions do not qualify for minor-update auto-merge. Local rules
 can override this policy; review those overrides before adoption.
 
-For eligible updates, it enables GitHub auto-merge while creating or updating the PR, so
-GitHub can merge after approval and required CI without another Renovate run. Configured
-reviewers and assignees are still requested for automerging PRs.
+Security PRs, including breaking major fixes, remain eligible for auto-merge. With an
+approval-only bypass, those fixes can merge on green required CI without human review;
+CI is not a guarantee of compatibility. Security updates still bypass the routine
+schedule and release-age delay.
 
-Before opting in, enable repository auto-merge and require approval of the latest push
-and named CI checks in GitHub's branch rules. Pin checks to their expected GitHub App
-where appropriate. Give neither Renovate nor an approval helper a ruleset bypass.
+For eligible updates, it enables GitHub auto-merge while creating or updating the PR, so
+GitHub can merge after applicable approval rules and required CI without another
+Renovate run. Configured reviewers and assignees are still requested for automerging PRs.
+
+Before opting in, enable repository auto-merge and require named CI checks in GitHub's
+branch rules. Pin checks to their expected GitHub App where appropriate. Keep Renovate
+out of any bypass list covering required CI, branch freshness, or history protections.
 `ignoreTests: false` is retained, but GitHub's required checks are the authoritative
 merge gate; a workflow that merely runs is not a required check.
 
-This preset does not grant approval, change branch protections, or require the approver
-to be human. Keep approval under human control until a narrowly scoped approval bot is
-deliberately introduced. GitHub owns merge timing, so Renovate's `automergeSchedule`
-does not delay a platform-native merge once its requirements are met. Conflicts or
+This preset does not grant approval or change branch protections. For repositories
+controlled by one owner, approval can live in a separate ruleset that permits only the
+Renovate App to bypass it through PRs, alongside any existing administrator exception.
+Other actors still need latest-push approval, while required CI remains independently
+enforced. Do not enable this bypass on repositories without required CI. This trusts
+Renovate's configuration to decide eligibility rather than duplicating it in an approval
+bot. Verify the App's GitHub-native merge behavior on one repository before wider rollout.
+
+GitHub owns merge timing, so Renovate's `automergeSchedule` does not delay a
+platform-native merge once its requirements are met. Conflicts or
 required updates from the base branch can still need a Renovate rerun, new CI results,
-and fresh approval of the latest push.
+and fresh approval of the latest push where approval is required.
 
 The baseline, application, and library profiles do not opt repositories in. Repositories
 with different merge conventions, such as the merge-only `sbctl-debian` fork, should not

@@ -500,7 +500,7 @@ for (const source of ["github", "osv", "both"]) {
   assert.ok(reviewedBranches.length > 0);
   for (const branch of reviewedBranches) {
     const eligible =
-      !branch.isVulnerabilityAlert &&
+      branch.isVulnerabilityAlert ||
       branch.upgrades.every(
         (upgrade) =>
           upgrade.updateType !== "major" &&
