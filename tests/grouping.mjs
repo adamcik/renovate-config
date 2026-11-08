@@ -78,6 +78,14 @@ function targetDeps(manager) {
     update(`${prefix}-security-major`, "major", "2.0.0", options),
     update(`${prefix}-patch`, "patch", "1.0.1", options),
     update(`${prefix}-minor`, "minor", "1.1.0", options),
+    update(`${prefix}-prestable-patch`, "patch", "0.2.1", {
+      ...options,
+      currentVersion: "0.2.0",
+    }),
+    update(`${prefix}-prestable-minor`, "minor", "0.3.0", {
+      ...options,
+      currentVersion: "0.2.0",
+    }),
     update(`${prefix}-major`, "major", "2.0.0", options),
   ];
 }
@@ -491,7 +499,15 @@ for (const source of ["github", "osv", "both"]) {
   const reviewedBranches = await branches(source, config(automergePolicy));
   assert.ok(reviewedBranches.length > 0);
   for (const branch of reviewedBranches) {
-    assert.equal(branch.automerge, true, `${source}: ${branch.branchName} opts in`);
+    const eligible =
+      !branch.isVulnerabilityAlert &&
+      branch.upgrades.every(
+        (upgrade) =>
+          upgrade.updateType !== "major" &&
+          !upgrade.depName.endsWith("-prestable-minor") &&
+          upgrade.depName !== "opentelemetry-instrumentation-requests",
+      );
+    assert.equal(branch.automerge, eligible, `${source}: ${branch.branchName} eligibility`);
     assert.equal(branch.automergeType, "pr");
     assert.equal(branch.platformAutomerge, true);
     assert.equal(branch.automergeStrategy, "rebase");
@@ -503,13 +519,66 @@ for (const source of ["github", "osv", "both"]) {
     reviewedBranches.some((branch) =>
       branch.upgrades.some((upgrade) => upgrade.updateType === "major"),
     ),
-    "major updates also wait for GitHub's review and check requirements",
+    "major updates remain available for manual review and merge",
   );
+  for (const manager of targetManagers) {
+    const prefix = dependencyPrefixes[manager];
+    const routine = branchWith(reviewedBranches, `${prefix}-patch`);
+    const prestable = branchWith(reviewedBranches, `${prefix}-prestable-minor`);
+    assert.equal(routine.automerge, true);
+    assert.ok(depNames(routine).includes(`${prefix}-minor`));
+    assert.ok(depNames(routine).includes(`${prefix}-prestable-patch`));
+    assert.equal(prestable.automerge, false);
+    assert.notEqual(routine.branchName, prestable.branchName);
+    assert.ok(!depNames(prestable).includes(`${prefix}-minor`));
+    assert.ok(!depNames(prestable).includes(`${prefix}-prestable-patch`));
+  }
 }
 const lockMaintenance = mergeChildConfig(automergePolicy, automergePolicy.lockFileMaintenance);
 assert.equal(lockMaintenance.automerge, true);
 assert.equal(lockMaintenance.automergeType, "pr");
 assert.equal(lockMaintenance.platformAutomerge, true);
+for (const eligible of [true, false]) {
+  const all = await branches(
+    "github",
+    config(automergePolicy, { lockFileMaintenance: { enabled: true, automerge: eligible } }),
+    { npm: [manifest("npm", "package.json", [], ["package-lock.json"])] },
+  );
+  assert.equal(all.length, 1);
+  assert.equal(all[0].isLockFileMaintenance, true);
+  assert.equal(all[0].automerge, eligible, "lock refreshes honor the repository opt-out");
+}
+const eligibilityCases = [
+  ["patch", "1.0.0", "1.0.1", true],
+  ["patch", "0.2.0", "0.2.1", true],
+  ["minor", "1.0.0", "1.1.0", true],
+  ["minor", "0.2.0", "0.3.0", false],
+  ["minor", null, "1.1.0", false],
+  ["major", "0.2.0", "1.0.0", false],
+  ["major", "1.0.0", "2.0.0", false],
+  ["pin", "1.0.0", "1.0.0", true],
+  ["pinDigest", "1.0.0", "1.0.0", true],
+  ["digest", "1.0.0", "1.0.0", true],
+  ["replacement", "1.0.0", "1.0.0", false],
+];
+for (const [
+  index,
+  [updateType, currentVersion, newVersion, eligible],
+] of eligibilityCases.entries()) {
+  const depName = `eligibility-${index}`;
+  const all = await branches("github", config(automergePolicy), {
+    npm: [
+      manifest("npm", "package.json", [
+        update(depName, updateType, newVersion, { currentVersion }),
+      ]),
+    ],
+  });
+  assert.equal(
+    branchWith(all, depName).automerge,
+    eligible,
+    `${updateType} from ${currentVersion}: explicit automerge eligibility`,
+  );
+}
 for (const profile of ["default.json", "application.json", "library.json"]) {
   const policy = JSON.parse(await readFile(profile, "utf8"));
   assert.notEqual(policy.automerge, true, `${profile} does not opt repositories in`);

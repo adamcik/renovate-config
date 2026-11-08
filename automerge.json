@@ -1,15 +1,36 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "automerge": true,
+  "automerge": false,
   "automergeType": "pr",
   "automergeStrategy": "rebase",
   "platformAutomerge": true,
   "assignAutomerge": true,
   "ignoreTests": false,
+  "packageRules": [
+    {
+      "description": "Automerge routine patches and pins after required approval and CI",
+      "matchUpdateTypes": ["patch", "pin", "digest", "pinDigest"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge minor updates only from stable major versions",
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": ">=1.0.0",
+      "automerge": true
+    },
+    {
+      "description": "Keep pre-1.0 minor updates separate from automergeable updates",
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": "<1.0.0",
+      "automerge": false,
+      "groupName": "{{manager}} pre-1.0 minor updates",
+      "groupSlug": "{{manager}}-pre-1-minor"
+    }
+  ],
   "lockFileMaintenance": {
     "automerge": true
   },
   "vulnerabilityAlerts": {
-    "automerge": true
+    "automerge": false
   }
 }
