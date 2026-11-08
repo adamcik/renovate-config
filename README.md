@@ -34,8 +34,8 @@ Deployed software should use the application profile:
 `automerge` opts in patch updates, version pins, digest updates, minor updates from
 versions at or above 1.0.0, lock-file maintenance, and security fixes. Routine major
 updates and pre-1.0 minor updates remain manual. Pre-1.0 minor updates have their own
-group per manager and project so they do not hold up eligible routine updates. Unknown or
-unsupported current versions do not qualify for minor-update auto-merge. Local rules
+group per manager and project so they do not hold up eligible routine updates. Unknown
+or unsupported current versions do not qualify for minor-update auto-merge. Local rules
 can override this policy; review those overrides before adoption.
 
 Security PRs, including breaking major fixes, remain eligible for auto-merge. With an
@@ -45,7 +45,8 @@ schedule and release-age delay.
 
 For eligible updates, it enables GitHub auto-merge while creating or updating the PR, so
 GitHub can merge after applicable approval rules and required CI without another
-Renovate run. Configured reviewers and assignees are still requested for automerging PRs.
+Renovate run. Configured reviewers and assignees are still requested for automerging
+PRs.
 
 Before opting in, enable repository auto-merge and require named CI checks in GitHub's
 branch rules. Pin checks to their expected GitHub App where appropriate. Keep Renovate
@@ -59,20 +60,21 @@ Renovate App to bypass it through PRs, alongside any existing administrator exce
 Other actors still need latest-push approval, while required CI remains independently
 enforced. Do not enable this bypass on repositories without required CI. This trusts
 Renovate's configuration to decide eligibility rather than duplicating it in an approval
-bot. Verify the App's GitHub-native merge behavior on one repository before wider rollout.
+bot. Verify the App's GitHub-native merge behavior on one repository before wider
+rollout.
 
 GitHub owns merge timing, so Renovate's `automergeSchedule` does not delay a
-platform-native merge once its requirements are met. Conflicts or
-required updates from the base branch can still need a Renovate rerun, new CI results,
-and fresh approval of the latest push where approval is required.
+platform-native merge once its requirements are met. Conflicts or required updates from
+the base branch can still need a Renovate rerun, new CI results, and fresh approval of
+the latest push where approval is required.
 
 The baseline, application, and library profiles do not opt repositories in. Repositories
 with different merge conventions, such as the merge-only `sbctl-debian` fork, should not
 extend this preset. Apply and verify required CI rules for existing consumers before
 rolling out a broader automerge policy.
 
-When narrowing an existing policy, inspect PRs already queued for GitHub auto-merge;
-do not assume a preset edit revokes an existing merge request. Recheck those PRs before
+When narrowing an existing policy, inspect PRs already queued for GitHub auto-merge; do
+not assume a preset edit revokes an existing merge request. Recheck those PRs before
 approving them under the new policy.
 
 ## Baseline policy
@@ -83,9 +85,9 @@ All profiles extend `default.json`, which:
 - Groups patch, minor, pin, and digest updates by manager and update type, except Go,
   npm, PEP 621, and Cargo minor and patch updates, which share one group per manifest.
   Known upstream release families retain their major-update groups; other routine major
-  updates remain individual. The opt-in automerge preset separates pre-1.0 minor
-  updates from its eligible routine groups. Any other mixed-policy group needs every
-  update to qualify before Renovate enables auto-merge.
+  updates remain individual. The opt-in automerge preset separates pre-1.0 minor updates
+  from its eligible routine groups. Any other mixed-policy group needs every update to
+  qualify before Renovate enables auto-merge.
 - Updates lock files on the first Saturday and allows at most three routine dependency
   pull requests at once.
 - Waits seven days before proposing direct dependency releases.
@@ -178,7 +180,10 @@ uses `buildGoModule` with a literal `vendorHash` in a tracked Nix file:
 
 ```json
 {
-  "extends": ["github>adamcik/renovate-config:application", "github>adamcik/renovate-config:go-nix"]
+  "extends": [
+    "github>adamcik/renovate-config:application",
+    "github>adamcik/renovate-config:go-nix"
+  ]
 }
 ```
 
@@ -250,9 +255,9 @@ Lock-file maintenance is not covered by Renovate's release-age delay. It can the
 select a newly published transitive dependency. Use an equivalent package-manager delay,
 or keep lock-file maintenance manual, when that matters.
 
-The automerge preset keeps lock-file maintenance eligible, including Nix flake refreshes.
-Required CI must cover the resulting dependency graph and toolchain; this is not a
-claim that a lock refresh is low risk. Opt out locally with
+The automerge preset keeps lock-file maintenance eligible, including Nix flake
+refreshes. Required CI must cover the resulting dependency graph and toolchain; this is
+not a claim that a lock refresh is low risk. Opt out locally with
 `"lockFileMaintenance": { "automerge": false }` when that coverage is insufficient.
 
 Git references have no release timestamp, so Nix git-ref updates may proceed without the
