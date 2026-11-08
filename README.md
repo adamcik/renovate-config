@@ -16,11 +16,11 @@ Deployed software should use the application profile:
 }
 ```
 
-| Profile       | Use for                                     | Version-range policy                                                           | Automerge                                                                            |
-| ------------- | ------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `application` | Services, apps, CLIs, system configurations | Advance the declared range when the latest release falls outside it            | Off by default                                                                       |
-| `library`     | Packages consumed by other projects         | Preserve published ranges; lower bounds represent the oldest supported version | Off by default                                                                       |
-| `automerge`   | An opt-in composed with either profile      | No range changes                                                               | GitHub-native rebase auto-merge for all updates, subject to required approval and CI |
+| Profile       | Use for                                     | Version-range policy                                                           | Automerge                                                                                         |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `application` | Services, apps, CLIs, system configurations | Advance the declared range when the latest release falls outside it            | Off by default                                                                                    |
+| `library`     | Packages consumed by other projects         | Preserve published ranges; lower bounds represent the oldest supported version | Off by default                                                                                    |
+| `automerge`   | An opt-in composed with either profile      | No range changes                                                               | GitHub-native rebase auto-merge for eligible routine updates, subject to required approval and CI |
 
 ```json
 {
@@ -31,8 +31,14 @@ Deployed software should use the application profile:
 }
 ```
 
-`automerge` includes manifest version changes, major updates, lock-file maintenance, and
-security fixes. It enables GitHub auto-merge while creating or updating the PR, so
+`automerge` opts in patch updates, version pins, digest updates, minor updates from
+versions at or above 1.0.0, and lock-file maintenance. Major updates, pre-1.0 minor
+updates, and security fixes remain manual. Pre-1.0 minor updates have their own group
+per manager and project so they do not hold up eligible routine updates. Unknown or
+unsupported current versions do not qualify for minor-update auto-merge. Local rules
+can override this policy; review those overrides before adoption.
+
+For eligible updates, it enables GitHub auto-merge while creating or updating the PR, so
 GitHub can merge after approval and required CI without another Renovate run. Configured
 reviewers and assignees are still requested for automerging PRs.
 
@@ -54,6 +60,10 @@ with different merge conventions, such as the merge-only `sbctl-debian` fork, sh
 extend this preset. Apply and verify required CI rules for existing consumers before
 rolling out a broader automerge policy.
 
+When narrowing an existing policy, inspect PRs already queued for GitHub auto-merge;
+do not assume a preset edit revokes an existing merge request. Recheck those PRs before
+approving them under the new policy.
+
 ## Baseline policy
 
 All profiles extend `default.json`, which:
@@ -62,7 +72,9 @@ All profiles extend `default.json`, which:
 - Groups patch, minor, pin, and digest updates by manager and update type, except Go,
   npm, PEP 621, and Cargo minor and patch updates, which share one group per manifest.
   Known upstream release families retain their major-update groups; other routine major
-  updates remain individual. Automergeable and manual work do not share a pull request.
+  updates remain individual. The opt-in automerge preset separates pre-1.0 minor
+  updates from its eligible routine groups. Any other mixed-policy group needs every
+  update to qualify before Renovate enables auto-merge.
 - Updates lock files on the first Saturday and allows at most three routine dependency
   pull requests at once.
 - Waits seven days before proposing direct dependency releases.
@@ -155,10 +167,7 @@ uses `buildGoModule` with a literal `vendorHash` in a tracked Nix file:
 
 ```json
 {
-  "extends": [
-    "github>adamcik/renovate-config:application",
-    "github>adamcik/renovate-config:go-nix"
-  ]
+  "extends": ["github>adamcik/renovate-config:application", "github>adamcik/renovate-config:go-nix"]
 }
 ```
 
@@ -229,6 +238,11 @@ or package builds.
 Lock-file maintenance is not covered by Renovate's release-age delay. It can therefore
 select a newly published transitive dependency. Use an equivalent package-manager delay,
 or keep lock-file maintenance manual, when that matters.
+
+The automerge preset keeps lock-file maintenance eligible, including Nix flake refreshes.
+Required CI must cover the resulting dependency graph and toolchain; this is not a
+claim that a lock refresh is low risk. Opt out locally with
+`"lockFileMaintenance": { "automerge": false }` when that coverage is insufficient.
 
 Git references have no release timestamp, so Nix git-ref updates may proceed without the
 seven-day delay. They remain subject to CI and scheduling.
