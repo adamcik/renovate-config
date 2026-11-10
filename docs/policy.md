@@ -109,26 +109,9 @@ See [Enable auto-merge](automerge.md) for the required GitHub setup.
 
 ## Release-delay limits
 
-Renovate represents a lock refresh as a synthetic update without a release timestamp. A
-pending age status on that update does not identify a package that is too young. Native
-package-manager controls can restrict newly resolved packages, including transitive
-dependencies.
-
-The preset sets `minimumReleaseAge: "0 days"` only for Nix lock maintenance.
-`nix flake update` has no native age cutoff. The exception permits fresh flake revisions
-and lets Renovate clear the pending status. It does not provide age protection.
-
-Other managers keep their positive age settings. Renovate generates npm's `--before`
-cutoff from that age, but can retry without the flag on certain errors. uv, pnpm, Yarn,
-Bun, and mise have native controls with version and backend limits. The preset does not
-configure those tools. The [native-control reference](research/release-age-controls.md)
-documents their settings and Renovate integration.
-
-When a native resolver enforces the intended cutoff, a scoped `timestamp-optional`
-exception can let the synthetic update pass without zeroing the age. The preset does not
-add that exception for other managers. A positive Renovate setting alone does not prove
-that the resolved graph meets an age threshold. Without verified native enforcement,
-keep maintenance manual.
+Nix lock maintenance uses `minimumReleaseAge: "0 days"` because its synthetic update has
+no release timestamp. This clears the false pending check but permits fresh flake
+revisions. Other managers keep their existing age settings.
 
 The `automerge` preset allows lock-file maintenance to auto-merge, including Nix flake
 refreshes. Required CI must test the changed dependency graph and toolchain.
