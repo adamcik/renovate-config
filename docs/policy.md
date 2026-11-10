@@ -109,9 +109,9 @@ See [Enable auto-merge](automerge.md) for the required GitHub setup.
 
 ## Release-delay limits
 
-Nix lock maintenance uses `minimumReleaseAge: "0 days"` because its synthetic update has
-no release timestamp. This clears the false pending check but permits fresh flake
-revisions. Other managers keep their existing age settings.
+Nix lock maintenance uses `minimumReleaseAgeBehaviour: "timestamp-optional"` because its
+synthetic update has no release timestamp. This clears the false pending check but
+permits fresh flake revisions. Other managers keep their existing age settings.
 
 The `automerge` preset allows lock-file maintenance to auto-merge, including Nix flake
 refreshes. Required CI must test the changed dependency graph and toolchain.
