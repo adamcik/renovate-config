@@ -538,6 +538,22 @@ const lockMaintenance = mergeChildConfig(automergePolicy, automergePolicy.lockFi
 assert.equal(lockMaintenance.automerge, true);
 assert.equal(lockMaintenance.automergeType, "pr");
 assert.equal(lockMaintenance.platformAutomerge, true);
+assert.equal(resolvedDefault.minimumReleaseAge, "7 days");
+assert.equal(
+  branchWith(defaultBranches, "example.com/go-patch").upgrades.find(
+    (upgrade) => upgrade.depName === "example.com/go-patch",
+  ).minimumReleaseAge,
+  "7 days",
+  "dependency releases retain their age requirement",
+);
+const nixLocks = await branches(
+  "github",
+  config(resolvedDefault, { lockFileMaintenance: { enabled: true } }),
+  { nix: [manifest("nix", "flake.nix", [], ["flake.lock"])] },
+);
+assert.equal(nixLocks.length, 1);
+assert.equal(nixLocks[0].minimumReleaseAge, "0 days");
+assert.equal(nixLocks[0].upgrades[0].minimumReleaseAge, "0 days");
 for (const eligible of [true, false]) {
   const all = await branches(
     "github",
@@ -546,6 +562,8 @@ for (const eligible of [true, false]) {
   );
   assert.equal(all.length, 1);
   assert.equal(all[0].isLockFileMaintenance, true);
+  assert.equal(all[0].minimumReleaseAge, "0 days");
+  assert.equal(all[0].upgrades[0].minimumReleaseAge, "0 days");
   assert.equal(all[0].automerge, eligible, "lock refreshes honor the repository opt-out");
 }
 const eligibilityCases = [
