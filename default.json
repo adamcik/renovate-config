@@ -80,6 +80,7 @@
   ],
   "lockFileMaintenance": {
     "enabled": true,
+    "commitMessageExtra": "({{manager}}: {{{packageFile}}})",
     "schedule": ["* * 1-7 * 6"]
   },
   "osvVulnerabilityAlerts": true,
