@@ -603,6 +603,41 @@ const uvLocks = await branches(
 assert.equal(uvLocks.length, 1);
 assert.equal(uvLocks[0].upgrades[0].minimumReleaseAge, "7 days");
 assert.equal(checkMinimumReleaseAge(uvLocks[0].upgrades[0], undefined).isPending, true);
+const namedLocks = await branches(
+  "github",
+  config(resolvedDefault, { lockFileMaintenance: { enabled: true } }),
+  {
+    nix: [manifest("nix", "flake.nix", [])],
+    pep621: [
+      manifest("pep621", "pyproject.toml", [], ["uv.lock"]),
+      manifest("pep621", "tools/pyproject.toml", [], ["tools/uv.lock"]),
+    ],
+    npm: [manifest("npm", "package.json", [], ["package-lock.json"])],
+  },
+);
+assert.deepEqual(
+  namedLocks
+    .map(({ branchName, prTitle }) => ({ branchName, prTitle }))
+    .sort((a, b) => a.branchName.localeCompare(b.branchName)),
+  [
+    {
+      branchName: "renovate/lock-file-maintenance",
+      prTitle: "Lock file maintenance (nix: flake.nix)",
+    },
+    {
+      branchName: "renovate/package.json-lock-file-maintenance",
+      prTitle: "Lock file maintenance (npm: package.json)",
+    },
+    {
+      branchName: "renovate/pyproject.toml-lock-file-maintenance",
+      prTitle: "Lock file maintenance (pep621: pyproject.toml)",
+    },
+    {
+      branchName: "renovate/tools/pyproject.toml-lock-file-maintenance",
+      prTitle: "Lock file maintenance (pep621: tools/pyproject.toml)",
+    },
+  ],
+);
 for (const eligible of [true, false]) {
   const all = await branches(
     "github",
