@@ -109,14 +109,25 @@ See [Enable auto-merge](automerge.md) for the required GitHub setup.
 
 ## Release-delay limits
 
-Lock-file maintenance is not covered by Renovate's release-age delay. It can select a
-newly published transitive dependency. An equivalent package-manager delay or manual
-lock-file maintenance is necessary when that matters.
+Renovate's synthetic lock-maintenance update has no single release timestamp. Its age
+status does not establish the age of the packages selected by the resolver. Native
+package-manager controls can restrict that selection, including transitive packages.
 
-The shared preset sets `lockFileMaintenance.minimumReleaseAge` to `0 days`. A lock
-refresh has no release timestamp, so inheriting the default age check would leave it
-pending indefinitely. The explicit zero also clears that status on existing PRs.
-Dependency releases keep their existing age requirements.
+Only Nix lock maintenance gets `minimumReleaseAge: "0 days"`. `nix flake update` has no
+native release-age cutoff, so the inherited timestamp check would stay pending. This
+exception permits fresh flake revisions. It does not provide equivalent age protection.
+The explicit zero lets Renovate clear the existing pending status.
+
+Other managers retain their positive age settings. Renovate passes the age to npm's
+`--before` cutoff, subject to its fallback behavior. uv, pnpm, Yarn, Bun, and mise have
+their own controls, but support depends on CLI version, configuration, and backend. The
+preset does not add those settings to repositories. See the
+[native release-age controls](research/release-age-controls.md) for sources and limits.
+
+For a workflow blocked only by the synthetic timestamp check, a scoped
+`timestamp-optional` exception can retain a positive resolver cutoff. Verify the
+effective native policy before adding that exception. Do not assume a positive Renovate
+setting alone protects every resolved graph. Otherwise, keep maintenance manual.
 
 The `automerge` preset allows lock-file maintenance to auto-merge, including Nix flake
 refreshes. Required CI must test the changed dependency graph and toolchain.

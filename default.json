@@ -35,6 +35,12 @@
       "minimumReleaseAgeBehaviour": "timestamp-optional"
     },
     {
+      "description": "Nix flake maintenance has no native release-age cutoff",
+      "matchManagers": ["nix"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "minimumReleaseAge": "0 days"
+    },
+    {
       "description": "Group patch updates by manager",
       "matchUpdateTypes": ["patch"],
       "groupName": "{{manager}} patch updates"
@@ -74,7 +80,6 @@
   ],
   "lockFileMaintenance": {
     "enabled": true,
-    "minimumReleaseAge": "0 days",
     "schedule": ["* * 1-7 * 6"]
   },
   "osvVulnerabilityAlerts": true,

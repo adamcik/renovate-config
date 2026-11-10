@@ -554,6 +554,22 @@ const nixLocks = await branches(
 assert.equal(nixLocks.length, 1);
 assert.equal(nixLocks[0].minimumReleaseAge, "0 days");
 assert.equal(nixLocks[0].upgrades[0].minimumReleaseAge, "0 days");
+const nixVersions = await branches("github", config(resolvedDefault), {
+  nix: [
+    manifest("nix", "flake.nix", [
+      update("flake-input", "digest", "1.0.1", { datasource: "git-refs" }),
+    ]),
+  ],
+});
+assert.equal(nixVersions.length, 1);
+assert.equal(nixVersions[0].upgrades[0].minimumReleaseAge, "7 days");
+const uvLocks = await branches(
+  "github",
+  config(resolvedDefault, { lockFileMaintenance: { enabled: true } }),
+  { pep621: [manifest("pep621", "pyproject.toml", [], ["uv.lock"])] },
+);
+assert.equal(uvLocks.length, 1);
+assert.equal(uvLocks[0].upgrades[0].minimumReleaseAge, "7 days");
 for (const eligible of [true, false]) {
   const all = await branches(
     "github",
@@ -562,8 +578,8 @@ for (const eligible of [true, false]) {
   );
   assert.equal(all.length, 1);
   assert.equal(all[0].isLockFileMaintenance, true);
-  assert.equal(all[0].minimumReleaseAge, "0 days");
-  assert.equal(all[0].upgrades[0].minimumReleaseAge, "0 days");
+  assert.equal(all[0].minimumReleaseAge, "7 days");
+  assert.equal(all[0].upgrades[0].minimumReleaseAge, "7 days");
   assert.equal(all[0].automerge, eligible, "lock refreshes honor the repository opt-out");
 }
 const eligibilityCases = [
