@@ -109,25 +109,26 @@ See [Enable auto-merge](automerge.md) for the required GitHub setup.
 
 ## Release-delay limits
 
-Renovate's synthetic lock-maintenance update has no single release timestamp. Its age
-status does not establish the age of the packages selected by the resolver. Native
-package-manager controls can restrict that selection, including transitive packages.
+Renovate represents a lock refresh as a synthetic update without a release timestamp. A
+pending age status on that update does not identify a package that is too young. Native
+package-manager controls can restrict newly resolved packages, including transitive
+dependencies.
 
-Only Nix lock maintenance gets `minimumReleaseAge: "0 days"`. `nix flake update` has no
-native release-age cutoff, so the inherited timestamp check would stay pending. This
-exception permits fresh flake revisions. It does not provide equivalent age protection.
-The explicit zero lets Renovate clear the existing pending status.
+The preset sets `minimumReleaseAge: "0 days"` only for Nix lock maintenance.
+`nix flake update` has no native age cutoff. The exception permits fresh flake revisions
+and lets Renovate clear the pending status. It does not provide age protection.
 
-Other managers retain their positive age settings. Renovate passes the age to npm's
-`--before` cutoff, subject to its fallback behavior. uv, pnpm, Yarn, Bun, and mise have
-their own controls, but support depends on CLI version, configuration, and backend. The
-preset does not add those settings to repositories. See the
-[native release-age controls](research/release-age-controls.md) for sources and limits.
+Other managers keep their positive age settings. Renovate generates npm's `--before`
+cutoff from that age, but can retry without the flag on certain errors. uv, pnpm, Yarn,
+Bun, and mise have native controls with version and backend limits. The preset does not
+configure those tools. The [native-control reference](research/release-age-controls.md)
+documents their settings and Renovate integration.
 
-For a workflow blocked only by the synthetic timestamp check, a scoped
-`timestamp-optional` exception can retain a positive resolver cutoff. Verify the
-effective native policy before adding that exception. Do not assume a positive Renovate
-setting alone protects every resolved graph. Otherwise, keep maintenance manual.
+When a native resolver enforces the intended cutoff, a scoped `timestamp-optional`
+exception can let the synthetic update pass without zeroing the age. The preset does not
+add that exception for other managers. A positive Renovate setting alone does not prove
+that the resolved graph meets an age threshold. Without verified native enforcement,
+keep maintenance manual.
 
 The `automerge` preset allows lock-file maintenance to auto-merge, including Nix flake
 refreshes. Required CI must test the changed dependency graph and toolchain.

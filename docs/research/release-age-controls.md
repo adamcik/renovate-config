@@ -1,121 +1,199 @@
 # Release-age controls and lock maintenance
 
-## Conclusion
+The shared preset exempts only Nix lock maintenance from the release-age check. Other
+managers keep positive age settings. npm uses that value for its resolver cutoff, so
+zero removes the generated observation period unless native configuration supplies
+another cutoff. [44.167.7 source][NPM-R1], [44.224.2 source][NPM-R2]
 
-Do **not** make `lockFileMaintenance.minimumReleaseAge: "0 days"` a shared,
-manager-independent default. Both examined Renovate versions translate a positive age
-into npm's resolver cutoff; zero removes that protection unless repository npm
-configuration supplies its own cutoff. Conversely, zero does **not** erase uv, pnpm,
-Yarn, Bun, or mise configuration. Native support and Renovate integration are different
-questions. [NPM-R1], [NPM-R2]
+This note compares Renovate 44.167.7, the pinned runner, with 44.224.2. The latter is a
+source comparison, not a proposed upgrade. The investigation did not run Docker or
+package-manager integration tests. [44.167.7 archive][ARCHIVE1],
+[44.224.2 archive][ARCHIVE2]
 
-This is source research, not a Docker/integration test. Docker was unavailable. The
-published packages inspected were **44.167.7** (pinned runner) and **44.224.2**
-(comparison only), not a proposed runtime rollout. [44.167.7 archive][ARCHIVE1],
-[44.224.2 archive][ARCHIVE2] PR #24 is closed and outside this recommendation.
+## Candidate age does not establish the resolved graph's age
 
-## Three separate mechanisms
+Renovate checks timestamps on proposed dependency versions and digests. The result
+depends on datasource timestamps, `internalChecksFilter`, and
+`minimumReleaseAgeBehaviour`. These checks do not inspect every package that a resolver
+selects. [Candidate checks][CANDIDATES]
 
-1. **Renovate candidate checks:** age-check the timestamp of an extracted dependency's
-   proposed release/digest, subject to datasource timestamps, `internalChecksFilter`,
-   and `minimumReleaseAgeBehaviour`. This is not a general audit of every dependency
-   selected by a package-manager solver. [Candidate checks][CANDIDATES]
-2. **Native resolution cutoffs:** constrain newly resolved direct **and transitive**
-   packages when the underlying tool supports and receives/configures a cutoff. They are
-   not necessarily retroactive checks of an existing lockfile; scope, exemptions, and
-   missing timestamps differ below.
-3. **Synthetic lock-maintenance status:** Renovate constructs a maintenance upgrade
-   without selecting a release or attaching its timestamp. In 44.167.7, a positive age
-   plus `timestamp-required` therefore produces a pending branch status; this does
-   **not** mean a newly locked package was inspected and found too young.
-   [Construction][FLATTEN], [status calculation][STATUS1]
+A native cutoff can restrict newly resolved direct and transitive packages. It does not
+necessarily recheck entries already in a lockfile. Each tool has different exemptions
+and rules for missing timestamps.
 
-44.224.2 adds a manager enforcement hook which can skip this synthetic check, but none
-of the seven examined managers exports an `enforcesMinimumReleaseAge` implementation.
-Its new `minimumReleaseAgeExtracted` infrastructure likewise does not mean these
-managers extract native cutoff settings into candidate checks. The new
-`minimumReleaseAgeSupport` declarations are documentation metadata, not automatic
-translation/enforcement. [Hook][HOOK], [status use][STATUS2], [manager contract][TYPES],
+For lock maintenance, Renovate constructs a synthetic update without a release
+timestamp. In 44.167.7, a positive age with `timestamp-required` leaves that update
+pending. The status does not identify a package that is too young.
+[Update construction][FLATTEN], [status calculation][STATUS1]
+
+Renovate 44.224.2 adds `enforcesMinimumReleaseAge`, which lets a manager skip this
+synthetic check. None of the managers in this note implements the hook. They also do not
+use `minimumReleaseAgeExtracted` to feed native settings into candidate checks.
+`minimumReleaseAgeSupport` describes support but does not implement enforcement.
+[Manager hook][HOOK], [status calculation][STATUS2], [manager contract][TYPES],
 [published manager sources][ARCHIVE2]
 
-## Native controls: verified versions and limits
+## uv
 
-| Tool           | Native control and important boundaries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **uv**         | `exclude-newer` in `[tool.uv]` / `uv.toml`, CLI `--exclude-newer`, or `UV_EXCLUDE_NEWER`. Absolute-date filtering was exposed in **0.1.15**; **0.2.22** extended installer arguments; relative cooldown durations require **0.9.17**. The cutoff compares **distribution-file upload times**, not just version release dates. Index files missing upload times are excluded when a cutoff applies; this is not a Git/path dependency age gate. Package-specific overrides exist (`exclude-newer-package`); current docs also support `false` exemptions, which should not be assumed available in every older uv. [Settings][UV-DOC], [early changelog][UV-EARLY], [0.9.17 changelog][UV-RELATIVE], [resolver implementation][UV-RESOLVER]                                                                                                                                                                                                                         |
-| **npm**        | Absolute `before` / `--before` since **6.9.0**; relative `min-release-age` in **days** since **11.10.0**, configurable in `.npmrc`. These constrain npm's resolved tree, not merely Renovate's direct candidate. npm 11.10.0 declares the two options mutually exclusive; newer documentation permits coexistence with source-precedence rules, so do not project current semantics onto all npm 11 releases. Current npm also documents package exclusions. These are registry publish-time controls, not a universal age check for arbitrary URLs/Git. [6.9.0 changelog][NPM-BEFORE], [11.10.0 definition][NPM-AGE], [current config][NPM-DOC]                                                                                                                                                                                                                                                                                                                   |
-| **pnpm**       | `minimumReleaseAge` in `pnpm-workspace.yaml`, in **minutes**, introduced in **10.16.0** together with `minimumReleaseAgeExclude`. It includes transitives. Current docs additionally describe missing registry times passing by default (`minimumReleaseAgeIgnoreMissingTime`), non-strict fallback when relying on the built-in age default, and a **30-day maximum for `serverType: pnpr`**. Explicitly configured age defaults to strict behavior in those docs. These newer settings/defaults must not be assumed present in 10.16.0; inspect the pinned CLI. [10.16.0 changelog][PNPM-INTRO], [official resolver settings][PNPM-DOC]                                                                                                                                                                                                                                                                                                                          |
-| **Yarn**       | Modern/Berry **4.10.0** has `npmMinimalAgeGate` and `npmPreapprovedPackages` in `.yarnrc.yml`. At that tag the age is a **number of minutes**, default `0`; do not copy today's duration-string documentation into 4.10.0 blindly, or assume Yarn Classic supports the setting. The npm semver resolver filters candidates, including transitive resolution; undated versions do not fail the age comparison. This is not a gate for every non-npm protocol. [4.10.0 configuration source][YARN-CONFIG], [resolver][YARN-RESOLVER], [gate implementation][YARN-GATE], [current docs][YARN-DOC]                                                                                                                                                                                                                                                                                                                                                                     |
-| **Bun**        | **1.3** introduced `--minimum-release-age` / `[install].minimumReleaseAge` in `bunfig.toml`, numeric **seconds**, plus exclusions. It filters newly resolved direct and transitive packages; existing `bun.lock` selections remain unchanged. Exact requests still respect the gate. Current docs explicitly say a missing `time` field passes; this is not fail-closed protection for every registry/source. [1.3 announcement][BUN-INTRO], [install reference][BUN-DOC]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| **mise**       | Native `minimum_release_age` is verified in **2026.5.12**, accepting relative durations or an absolute date, with CLI and per-tool overrides. That version documents timestamp-capable backends including aqua, cargo, npm, pipx, and some core tools; undated versions pass. By **2026.11.0**, docs describe a default 24-hour delay across backends, still limited by available timestamps. Fuzzy/latest selection is filtered; exact versions and locked selections bypass the tool-version gate. **Only npm and PyPI/pipx backends** additionally document transitive-install cutoffs; other backend installers' dependencies are not thereby protected. External installers need compatible versions: npm >=6.9.0 (`--before`; >=11.10.0 relative days), pnpm >=10.16.0, Bun >=1.3.0, uv >=0.2.22 for the documented installer path. [2026.5.12 settings][MISE-OLD], [2026.11.0 security model][MISE-SEC], [npm backend][MISE-NPM], [PyPI backend][MISE-PYPI] |
-| **Nix flakes** | No generic release-age cutoff is documented for `nix flake update` in the examined **2.31.2 source** or **2.35.5 manual**. It updates the named inputs, or all inputs, to their current references; explicit revision pins control selection but are not a relative cooldown. `--refresh` concerns cache freshness, not release age. This is a bounded finding about the native flake updater, not proof that no external Nix tooling could implement an age policy. [2.31.2 source][NIX-SOURCE], [2.35 manual][NIX-DOC]                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+uv reads `exclude-newer` from `uv.toml` or `[tool.uv]` in `pyproject.toml`. It also
+accepts `--exclude-newer` and `UV_EXCLUDE_NEWER`. Absolute-date filtering appeared in
+0.1.15, and 0.2.22 extended the installer arguments. Relative delays require 0.9.17.
+[Settings][UV-DOC], [early changelog][UV-EARLY], [0.9.17 changelog][UV-RELATIVE]
 
-## What Renovate actually does
+The cutoff compares distribution-file upload times. When a cutoff applies, uv excludes
+index files that lack upload times. Git and path dependencies are outside that check.
+`exclude-newer-package` provides package-specific overrides. Current docs also allow
+`false` exemptions, but support in every older uv was not verified. [Settings][UV-DOC],
+[resolver implementation][UV-RESOLVER]
 
-The following behavior is present in **both** published versions unless stated
-otherwise. “Native config retained” means the CLI can read it; it does not mean Renovate
-reads its value or guarantees protection for every source/backend.
+Renovate's `pep621` manager runs `uv lock --upgrade` for maintenance. It neither
+translates its age setting to `--exclude-newer` nor extracts uv's cutoff into candidate
+checks. uv can still read the committed native configuration. [44.167.7 source][UV-R1],
+[44.224.2 source][UV-R2]
 
-| Manager / CLI | Translation, recognition, and maintenance behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pep621` / uv | Runs `uv lock --upgrade` for maintenance. Does **not** translate Renovate age to `--exclude-newer`, or extract the native cutoff into candidate checks. A committed `[tool.uv].exclude-newer` remains available to uv. [44.167.7][UV-R1], [44.224.2][UV-R2]                                                                                                                                                                                                                                                                                                                                                           |
-| `npm` / npm   | Computes `--before=<now − minimumReleaseAge>`. A valid `.npmrc` `before` chooses the older cutoff; a recognized `.npmrc` `min-release-age` suppresses the generated flag and leaves enforcement to npm. **Caveat:** on a matching date-related ETARGET error, Renovate retries without its generated `--before` and returns a notice; this is not an unconditional fail-closed guarantee. [44.167.7][NPM-R1], [44.224.2][NPM-R2]                                                                                                                                                                                      |
-| `npm` / pnpm  | No automatic age translation or native-age extraction for candidate filtering. Workspace settings remain available to pnpm. Renovate **does** recognize a workspace age for a separate purpose: vulnerability updates can add version exemptions to `minimumReleaseAgeExclude`. That is not ordinary maintenance disablement. [44.167.7 resolver][PNPM-R1], [44.224.2 resolver][PNPM-R2], [security exemptions][PNPM-EXEMPT]                                                                                                                                                                                          |
-| `npm` / Yarn  | No automatic age translation or native-age extraction. Renovate invokes Yarn with `.yarnrc.yml` available; for maintenance it clears `yarn.lock`, so new resolutions can use a configured Berry gate. [44.167.7][YARN-R1], [44.224.2][YARN-R2]                                                                                                                                                                                                                                                                                                                                                                        |
-| `bun` / Bun   | No automatic age translation or extraction. Maintenance deletes the lockfile then invokes `bun install`; committed `bunfig.toml` can supply the native policy. [44.167.7][BUN-R1], [44.224.2][BUN-R2]                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `mise` / mise | Neither translates Renovate age nor reads `minimum_release_age` into candidate filtering. Runs maintenance via `mise lock --bump` when supported. Both versions require mise >=**2026.7.12** for the safe-mode path, otherwise unsafe-execution allowlisting is required. **Safe mode ignores project `[settings]`**, so a repository's `[settings].minimum_release_age` alone is not sufficient evidence of protection in Renovate; inspect the actual mise version, global/environment configuration, per-tool policy, and backends. [44.167.7][MISE-R1], [44.224.2][MISE-R2], [safe-mode settings rule][MISE-SAFE] |
-| `nix` / Nix   | Runs `nix … flake update` for maintenance, without any age cutoff or post-resolution age audit. Normal Renovate candidate checks and this native lock operation must not be conflated. [44.167.7][NIX-R1], [44.224.2][NIX-R2]                                                                                                                                                                                                                                                                                                                                                                                         |
+## npm
 
-## Effect of globally setting the maintenance age to zero
+npm supports `before` and `--before` from 6.9.0. Version 11.10.0 adds `min-release-age`,
+measured in days and configurable in `.npmrc`. These cutoffs constrain the resolved tree
+using registry publication times. They are not a general age check for Git or direct URL
+dependencies. [6.9.0 changelog][NPM-BEFORE], [11.10.0 definitions][NPM-AGE],
+[current config reference][NPM-DOC]
 
-- **npm without native configuration:** loses the positive generated resolver window.
-  The string `"0 days"` still reaches the generator and yields a cutoff near **now**,
-  not the former observation period. [NPM-R1], [NPM-R2]
-- **npm with valid native configuration:** an older `.npmrc` `before` remains stricter,
-  and recognized `min-release-age` still delegates to npm. Zero does not erase those
-  settings. Older npm may not support `min-release-age`; Renovate recognizing the text
-  is not proof that the CLI supports it. [NPM-R1], [NPM-AGE]
-- **uv/pnpm/Yarn/Bun/mise:** zero does not turn off their independent native settings,
-  but neither runner supplies missing settings for them. Zero also does not cure backend
-  gaps, missing timestamps, exact-pin bypasses, or mise's safe-mode configuration
-  boundary. [Manager table above](#what-renovate-actually-does)
-- **All managers:** bypasses the synthetic positive-age check for maintenance; it does
-  not demonstrate that the resolved graph met any age threshold. A nested maintenance
-  override does not itself change ordinary version-update candidate ages. [FLATTEN],
-  [STATUS1], [STATUS2]
+npm 11.10.0 treats `before` and `min-release-age` as mutually exclusive. Current docs
+allow both with configuration-source precedence and describe package exclusions. The
+behavior therefore depends on the installed npm version. [11.10.0 definitions][NPM-AGE],
+[current config reference][NPM-DOC]
 
-## Narrow policy recommendation
+Both Renovate versions calculate `--before` by subtracting `minimumReleaseAge` from the
+current time. A stricter valid `.npmrc` `before` takes precedence. If Renovate
+recognizes `.npmrc` `min-release-age`, it omits its generated flag and leaves the cutoff
+to npm. Recognition does not prove that the installed CLI supports the setting.
+[44.167.7 source][NPM-R1], [44.224.2 source][NPM-R2]
 
-1. Preserve the shared positive release age, and remove the **blanket zero** from the
-   proposal. Preserve/supplement native uv, npm, pnpm, Yarn, Bun, and mise policies
-   rather than treating absent integration as absent support.
-2. If the immediate, accepted exception is Nix lock maintenance, scope it to
-   **`matchManagers: ["nix"]` plus `matchUpdateTypes: ["lockFileMaintenance"]`**. State
-   plainly that it permits fresh flake revisions; it is an availability exception,
-   **not** equivalent age protection. If that risk is unacceptable, leave automatic Nix
-   maintenance disabled/manual until selection or verification actually checks the
-   revisions. [NIX-R1], [NIX-DOC]
-3. For a native-protected maintenance workflow blocked only by the missing synthetic
-   timestamp, consider a **scoped maintenance
-   `minimumReleaseAgeBehaviour: "timestamp-optional"`**, retaining the positive
-   `minimumReleaseAge`. Unlike zero, this preserves npm's generated cutoff while
-   allowing the timestamp-less synthetic upgrade. This is an inference from the source,
-   not an integration-tested configuration, and is safe only to the extent the actual
-   resolver policy is established. [FLATTEN], [STATUS1], [NPM-R1]
+After a matching date-related `ETARGET` error, Renovate can retry without its generated
+`--before` flag and emit a notice. A successful update does not prove that the generated
+cutoff remained in use. [44.167.7 source][NPM-R1], [44.224.2 source][NPM-R2]
 
-## Remaining verification
+## pnpm
 
-- Confirm each consumer's actual CLI version, registry timestamps, committed native
-  policy, and effective environment. This research does not inventory or change live
-  runners.
-- Test the resolved graph and command/config boundary on the pinned runner, particularly
-  npm's retry path and mise safe mode; no Docker execution is claimed.
-- Test security-remediation exceptions before adding native cooldowns, so they do not
-  silently postpone urgent fixes that bypass Renovate's own candidate delay.
-- Nix is **not uniquely unprotected in practice**: unsupported/old CLI versions,
-  disabled native settings, non-registry sources, undated mise backends, and
-  non-npm/PyPI mise transitives also leave gaps. Do not broaden the exception to those
-  cases without explicitly evaluating their risk.
+pnpm 10.16.0 adds `minimumReleaseAge` and `minimumReleaseAgeExclude` in
+`pnpm-workspace.yaml`. The age is measured in minutes and includes transitive
+dependencies. [10.16.0 changelog][PNPM-INTRO], [resolver settings][PNPM-DOC]
+
+Current docs describe `minimumReleaseAgeIgnoreMissingTime`, which lets undated registry
+entries pass by default. They also distinguish strict explicit settings from the
+built-in default, which can fall back to younger versions. Registries with
+`serverType: pnpr` limit the delay to 30 days. These newer settings and defaults were
+not verified for 10.16.0. [Resolver settings][PNPM-DOC]
+
+Renovate's `npm` manager neither translates its age to pnpm settings nor extracts the
+native cutoff into candidate checks. pnpm can read the workspace settings. For
+vulnerability updates, Renovate can add version exemptions to
+`minimumReleaseAgeExclude`. That exception does not disable ordinary maintenance
+controls. [44.167.7 source][PNPM-R1], [44.224.2 source][PNPM-R2],
+[security exemptions][PNPM-EXEMPT]
+
+## Yarn
+
+Yarn Berry 4.10.0 has `npmMinimalAgeGate` and `npmPreapprovedPackages` in `.yarnrc.yml`.
+At that version, the age is numeric minutes and defaults to zero. Current docs describe
+duration strings. Yarn Classic support was not established.
+[4.10.0 configuration][YARN-CONFIG], [current docs][YARN-DOC]
+
+The npm semver resolver filters candidates, including transitive versions. Undated
+versions pass the age comparison. This is an npm-specific check, not a general check for
+every protocol. [Resolver][YARN-RESOLVER], [age comparison][YARN-GATE]
+
+Renovate does not translate or extract the native setting. For maintenance, it clears
+`yarn.lock` and runs Yarn with `.yarnrc.yml` available. A configured Berry cutoff can
+apply to the new resolutions. [44.167.7 source][YARN-R1], [44.224.2 source][YARN-R2]
+
+## Bun
+
+Bun 1.3 adds `--minimum-release-age` and `[install].minimumReleaseAge` in `bunfig.toml`.
+The value is numeric seconds, with package exclusions available. The cutoff filters
+newly resolved direct and transitive packages. Existing `bun.lock` selections remain
+unchanged, and exact requests still respect the cutoff. [1.3 announcement][BUN-INTRO],
+[install reference][BUN-DOC]
+
+Current docs say packages with a missing registry `time` field pass the check. The
+setting therefore does not reject every undated package. [Install reference][BUN-DOC]
+
+Renovate neither translates its age to Bun settings nor extracts the native value.
+Maintenance deletes the lockfile and invokes `bun install`, which can read the committed
+`bunfig.toml`. [44.167.7 source][BUN-R1], [44.224.2 source][BUN-R2]
+
+## mise
+
+mise 2026.5.12 has `minimum_release_age` with relative durations, absolute dates, CLI
+overrides, and per-tool overrides. Its documented timestamp-capable backends include
+aqua, cargo, npm, pipx, and some core tools. Undated versions pass. The 2026.11.0
+security docs describe a default 24-hour delay across backends, still limited by
+available timestamps. [2026.5.12 settings][MISE-OLD],
+[2026.11.0 security model][MISE-SEC]
+
+The tool-version check filters fuzzy and latest selections. Exact versions and locked
+selections bypass it. Only the npm and PyPI backends document additional cutoffs for
+transitive installs. Other backends' installer dependencies are not thereby protected.
+[Security model][MISE-SEC], [npm backend][MISE-NPM], [PyPI backend][MISE-PYPI]
+
+The documented installer paths require compatible external tools. npm needs 6.9.0 for
+`--before` or 11.10.0 for relative days. The other minimums are pnpm 10.16.0, Bun 1.3.0,
+and uv 0.2.22. [npm backend][MISE-NPM], [PyPI backend][MISE-PYPI]
+
+Renovate does not translate its age to mise or extract `minimum_release_age` into
+candidate checks. It runs `mise lock --bump` when supported. The safe-mode path requires
+mise 2026.7.12 or later. Older versions require unsafe-execution allowlisting.
+[44.167.7 source][MISE-R1], [44.224.2 source][MISE-R2]
+
+Safe mode ignores project `[settings]`. A project `minimum_release_age` alone therefore
+does not establish protection under Renovate. The effective global or environment
+configuration, per-tool policy, and backend determine what applies.
+[Safe-mode settings][MISE-SAFE]
+
+## Nix flakes
+
+The examined Nix 2.31.2 source and 2.35.5 manual document no generic release-age cutoff
+for `nix flake update`. The command follows current references for the named inputs, or
+all inputs. Explicit revision pins select revisions but are not relative delays.
+`--refresh` controls cache freshness, not release age. External tooling could implement
+a different selection policy. [2.31.2 source][NIX-SOURCE], [2.35 manual][NIX-DOC]
+
+Renovate runs the native updater without an age cutoff or a post-resolution age audit.
+Its ordinary candidate checks do not establish the age of every updated input.
+[44.167.7 source][NIX-R1], [44.224.2 source][NIX-R2]
+
+## Why the exception is Nix-only
+
+The shared rule matches both `nix` and `lockFileMaintenance`. It permits fresh flake
+revisions rather than claiming equivalent age protection. Ordinary version-update
+candidate ages stay unchanged. [Update construction][FLATTEN],
+[status calculation][STATUS1]
+
+A blanket zero would give npm a generated cutoff near the current time instead of the
+former observation period. A stricter `.npmrc` cutoff can still apply, but the CLI must
+support it. Zero does not erase the other tools' native settings, nor does Renovate
+supply settings that are absent. [44.167.7 source][NPM-R1], [44.224.2 source][NPM-R2],
+[11.10.0 definitions][NPM-AGE]
+
+For a workflow with verified native protection, a scoped maintenance
+`minimumReleaseAgeBehaviour: "timestamp-optional"` can retain a positive age while
+allowing the synthetic update to pass. This follows from the source but has not been
+verified through a package-manager integration test. Its safety depends on the actual
+resolver policy. [Update construction][FLATTEN], [status calculation][STATUS1],
+[npm cutoff generation][NPM-R1]
+
+## Verification limits
+
+This investigation did not inventory consumer CLI versions, registry timestamps, native
+settings, or effective environments. The resolved graph, npm retry path, mise safe mode,
+and security-remediation exceptions still need integration tests. Native cooldowns can
+otherwise postpone urgent fixes despite Renovate's candidate delay exemption.
+
+Nix is not the only path that can lack protection. Old CLIs, disabled settings,
+non-registry sources, missing timestamps, exact pins, and installer dependencies outside
+the supported mise backends can also leave packages unchecked. The shared rule does not
+extend the exception to those cases.
 
 [ARCHIVE1]: https://registry.npmjs.org/renovate/-/renovate-44.167.7.tgz
 [ARCHIVE2]: https://registry.npmjs.org/renovate/-/renovate-44.224.2.tgz
