@@ -113,6 +113,11 @@ Lock-file maintenance is not covered by Renovate's release-age delay. It can sel
 newly published transitive dependency. An equivalent package-manager delay or manual
 lock-file maintenance is necessary when that matters.
 
+The shared preset sets `lockFileMaintenance.minimumReleaseAge` to `0 days`. A lock
+refresh has no release timestamp, so inheriting the default age check would leave it
+pending indefinitely. The explicit zero also clears that status on existing PRs.
+Dependency releases keep their existing age requirements.
+
 The `automerge` preset allows lock-file maintenance to auto-merge, including Nix flake
 refreshes. Required CI must test the changed dependency graph and toolchain.
 Repositories without that coverage need `"lockFileMaintenance": { "automerge": false }`

@@ -74,6 +74,7 @@
   ],
   "lockFileMaintenance": {
     "enabled": true,
+    "minimumReleaseAge": "0 days",
     "schedule": ["* * 1-7 * 6"]
   },
   "osvVulnerabilityAlerts": true,
