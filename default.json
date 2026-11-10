@@ -38,7 +38,7 @@
       "description": "Nix flake maintenance has no native release-age cutoff",
       "matchManagers": ["nix"],
       "matchUpdateTypes": ["lockFileMaintenance"],
-      "minimumReleaseAge": "0 days"
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
     },
     {
       "description": "Group patch updates by manager",

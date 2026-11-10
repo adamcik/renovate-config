@@ -14,16 +14,20 @@ const { init: initLogger } = await renovate("logger/index.js");
 await initLogger();
 
 const { getConfig } = await renovate("config/defaults.js");
+const { GlobalConfig } = await renovate("config/global.js");
+const { massageConfig } = await renovate("config/massage.js");
 const { mergeChildConfig } = await renovate("config/utils.js");
 const { resolveConfigPresets } = await renovate("config/presets/index.js");
 const { detectVulnerabilityAlerts } = await renovate("workers/repository/init/vulnerability.js");
 const { Vulnerabilities } = await renovate("workers/repository/process/vulnerabilities.js");
 const { branchifyUpgrades } = await renovate("workers/repository/updates/branchify.js");
+const { setStability } = await renovate("workers/repository/update/branch/status-checks.js");
+const { checkMinimumReleaseAge } = await renovate("util/minimum-release-age.js");
 const { default: platformApis } = await renovate("modules/platform/api.js");
 const { setPlatformApi } = await renovate("modules/platform/index.js");
 
 const defaultConfig = JSON.parse(await readFile("default.json", "utf8"));
-const resolvedDefault = (await resolveConfigPresets(defaultConfig)).config;
+const resolvedDefault = massageConfig((await resolveConfigPresets(defaultConfig)).config);
 const automergeConfig = JSON.parse(await readFile("automerge.json", "utf8"));
 const targetManagers = ["gomod", "npm", "pep621", "cargo"];
 const dependencyPrefixes = { gomod: "example.com/go", npm: "npm", pep621: "python", cargo: "rust" };
@@ -552,8 +556,36 @@ const nixLocks = await branches(
   { nix: [manifest("nix", "flake.nix", [], ["flake.lock"])] },
 );
 assert.equal(nixLocks.length, 1);
-assert.equal(nixLocks[0].minimumReleaseAge, "0 days");
-assert.equal(nixLocks[0].upgrades[0].minimumReleaseAge, "0 days");
+assert.equal(nixLocks[0].minimumReleaseAge, "7 days");
+assert.equal(nixLocks[0].upgrades[0].minimumReleaseAge, "7 days");
+assert.equal(nixLocks[0].upgrades[0].minimumReleaseAgeBehaviour, "timestamp-optional");
+const githubApi = platformApis.get("github");
+let ageStatus = "yellow";
+platformApis.set("github", {
+  ...githubApi,
+  getBranchStatusCheck: async () => ageStatus,
+  setBranchStatus: async ({ context, state }) => {
+    assert.equal(context, "renovate/stability-days");
+    ageStatus = state;
+  },
+});
+setPlatformApi("github");
+GlobalConfig.set({
+  dryRun: null,
+  productLinks: { documentation: "https://docs.renovatebot.com/" },
+});
+try {
+  const upgrade = nixLocks[0].upgrades[0];
+  assert.equal(upgrade.releaseTimestamp, undefined);
+  const { isPending } = checkMinimumReleaseAge(upgrade, upgrade.releaseTimestamp);
+  assert.equal(isPending, false);
+  await setStability({ ...nixLocks[0], stabilityStatus: isPending ? "yellow" : "green" });
+  assert.equal(ageStatus, "green", "an existing pending maintenance status is cleared");
+} finally {
+  platformApis.set("github", githubApi);
+  setPlatformApi("github");
+  GlobalConfig.reset();
+}
 const nixVersions = await branches("github", config(resolvedDefault), {
   nix: [
     manifest("nix", "flake.nix", [
@@ -570,6 +602,7 @@ const uvLocks = await branches(
 );
 assert.equal(uvLocks.length, 1);
 assert.equal(uvLocks[0].upgrades[0].minimumReleaseAge, "7 days");
+assert.equal(checkMinimumReleaseAge(uvLocks[0].upgrades[0], undefined).isPending, true);
 for (const eligible of [true, false]) {
   const all = await branches(
     "github",
@@ -580,6 +613,7 @@ for (const eligible of [true, false]) {
   assert.equal(all[0].isLockFileMaintenance, true);
   assert.equal(all[0].minimumReleaseAge, "7 days");
   assert.equal(all[0].upgrades[0].minimumReleaseAge, "7 days");
+  assert.equal(checkMinimumReleaseAge(all[0].upgrades[0], undefined).isPending, true);
   assert.equal(all[0].automerge, eligible, "lock refreshes honor the repository opt-out");
 }
 const eligibilityCases = [
