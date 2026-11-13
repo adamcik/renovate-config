@@ -608,6 +608,7 @@ const namedLocks = await branches(
   config(resolvedDefault, { lockFileMaintenance: { enabled: true } }),
   {
     nix: [manifest("nix", "flake.nix", [])],
+    terraform: [manifest("terraform", "infra/tailscale/versions.tf", [])],
     pep621: [
       manifest("pep621", "pyproject.toml", [], ["uv.lock"]),
       manifest("pep621", "tools/pyproject.toml", [], ["tools/uv.lock"]),
@@ -622,21 +623,29 @@ assert.deepEqual(
   [
     {
       branchName: "renovate/lock-file-maintenance",
-      prTitle: "Lock file maintenance (nix: flake.nix)",
+      prTitle: "Lock file maintenance",
     },
     {
       branchName: "renovate/package.json-lock-file-maintenance",
-      prTitle: "Lock file maintenance (npm: package.json)",
+      prTitle: "Lock file maintenance",
     },
     {
       branchName: "renovate/pyproject.toml-lock-file-maintenance",
-      prTitle: "Lock file maintenance (pep621: pyproject.toml)",
+      prTitle: "Lock file maintenance",
     },
     {
       branchName: "renovate/tools/pyproject.toml-lock-file-maintenance",
-      prTitle: "Lock file maintenance (pep621: tools/pyproject.toml)",
+      prTitle: "Lock file maintenance",
     },
   ],
+);
+assert.deepEqual(
+  namedLocks
+    .find(({ branchName }) => branchName === "renovate/lock-file-maintenance")
+    .upgrades.map(({ manager }) => manager)
+    .sort(),
+  ["nix", "terraform"],
+  "the maintenance title must describe a branch shared by multiple managers",
 );
 for (const eligible of [true, false]) {
   const all = await branches(
