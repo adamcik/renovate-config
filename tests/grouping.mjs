@@ -556,6 +556,7 @@ const nixLocks = await branches(
   { nix: [manifest("nix", "flake.nix", [], ["flake.lock"])] },
 );
 assert.equal(nixLocks.length, 1);
+assert.equal(nixLocks[0].prTitle, "Lock file maintenance (nix: flake.nix)");
 assert.equal(nixLocks[0].minimumReleaseAge, "7 days");
 assert.equal(nixLocks[0].upgrades[0].minimumReleaseAge, "7 days");
 assert.equal(nixLocks[0].upgrades[0].minimumReleaseAgeBehaviour, "timestamp-optional");
@@ -608,7 +609,10 @@ const namedLocks = await branches(
   config(resolvedDefault, { lockFileMaintenance: { enabled: true } }),
   {
     nix: [manifest("nix", "flake.nix", [])],
-    terraform: [manifest("terraform", "infra/tailscale/versions.tf", [])],
+    terraform: [
+      manifest("terraform", "infra/tailscale/versions.tf", []),
+      manifest("terraform", "infra/dns/versions.tf", []),
+    ],
     pep621: [
       manifest("pep621", "pyproject.toml", [], ["uv.lock"]),
       manifest("pep621", "tools/pyproject.toml", [], ["tools/uv.lock"]),
@@ -623,19 +627,19 @@ assert.deepEqual(
   [
     {
       branchName: "renovate/lock-file-maintenance",
-      prTitle: "Lock file maintenance",
+      prTitle: "Lock file maintenance (terraform + nix)",
     },
     {
       branchName: "renovate/package.json-lock-file-maintenance",
-      prTitle: "Lock file maintenance",
+      prTitle: "Lock file maintenance (npm: package.json)",
     },
     {
       branchName: "renovate/pyproject.toml-lock-file-maintenance",
-      prTitle: "Lock file maintenance",
+      prTitle: "Lock file maintenance (pep621: pyproject.toml)",
     },
     {
       branchName: "renovate/tools/pyproject.toml-lock-file-maintenance",
-      prTitle: "Lock file maintenance",
+      prTitle: "Lock file maintenance (pep621: tools/pyproject.toml)",
     },
   ],
 );
@@ -644,7 +648,7 @@ assert.deepEqual(
     .find(({ branchName }) => branchName === "renovate/lock-file-maintenance")
     .upgrades.map(({ manager }) => manager)
     .sort(),
-  ["nix", "terraform"],
+  ["nix", "terraform", "terraform"],
   "the maintenance title must describe a branch shared by multiple managers",
 );
 for (const eligible of [true, false]) {
