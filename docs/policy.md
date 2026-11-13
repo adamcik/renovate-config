@@ -16,8 +16,9 @@ The baseline has these defaults:
 - Immediate security PRs, without auto-merge.
 - The Nix manager and OSV alerts for supported extracted dependencies.
 
-Lock-maintenance titles omit manager and manifest names because one branch can refresh
-locks from several managers, including all inputs in `flake.lock`.
+Lock-maintenance titles list every manager on the branch because one branch can refresh
+locks from several managers, including all inputs in `flake.lock`. A branch with one
+maintenance update also names its manifest to distinguish independent projects.
 
 GitHub vulnerability alerts require GitHub's dependency graph and Dependabot alerts.
 Security PRs bypass the routine schedule and release-age delay. "Immediate" means the

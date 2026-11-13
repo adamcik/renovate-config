@@ -80,6 +80,7 @@
   ],
   "lockFileMaintenance": {
     "enabled": true,
+    "commitMessageSuffix": "({{#each (distinct (lookupArray upgrades \"manager\"))}}{{#unless @first}} + {{/unless}}{{this}}{{/each}}{{#if (equals upgrades.length 1)}}: {{{packageFile}}}{{/if}})",
     "schedule": ["* * 1-7 * 6"]
   },
   "osvVulnerabilityAlerts": true,
