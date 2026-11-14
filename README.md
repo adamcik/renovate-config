@@ -64,3 +64,17 @@ with the inherited grouping, use:
 Use a full-day window so delayed runner starts do not skip the week's updates. Local
 rules do not bypass CI, scheduling, or branch protection unless they explicitly override
 those settings.
+
+## Maintain this repository's Nix environment
+
+The development shell and Nix checks use Determinate Systems'
+[nixpkgs-weekly feed](https://determinate.systems/blog/nixpkgs-cooldown/). It publishes
+weekly with a seven-day cooldown, so fixes can arrive more than seven days after
+upstream publication. This also delays updates to the Renovate package used by the Nix
+checks. It does not change consumer repositories, the separate CI container, or the age
+policy for other flake inputs.
+
+For an urgent fix, temporarily change `inputs.nixpkgs.url` in `flake.nix` to
+`github:NixOS/nixpkgs/nixpkgs-unstable` (or a specific reviewed upstream revision), run
+`nix flake update nixpkgs`, and validate the change through a PR. Restore the weekly URL
+and update its lock once the feed includes the fix.
