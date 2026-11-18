@@ -71,6 +71,22 @@
       }
     },
     {
+      "description": "Coordinate Python OpenTelemetry API, SDK, exporters, and instrumentation",
+      "matchDatasources": ["pypi"],
+      "matchPackageNames": ["opentelemetry-*"],
+      "groupName": "OpenTelemetry",
+      "groupSlug": null,
+      "separateMinorPatch": false
+    },
+    {
+      "description": "Coordinate Pydantic and its settings integration",
+      "matchDatasources": ["pypi"],
+      "matchPackageNames": ["pydantic", "pydantic-settings"],
+      "groupName": "Pydantic",
+      "groupSlug": null,
+      "separateMinorPatch": false
+    },
+    {
       "description": "Configure target-manager security commits",
       "matchManagers": ["gomod", "npm", "pep621", "cargo"],
       "matchJsonata": ["isVulnerabilityAlert = true"],

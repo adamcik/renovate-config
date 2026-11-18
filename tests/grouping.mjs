@@ -405,22 +405,23 @@ const otelCore = branchWith(defaultBranches, "opentelemetry-api");
 assert.deepEqual(depNames(otelCore), [
   "opentelemetry-api",
   "opentelemetry-exporter-otlp",
+  "opentelemetry-instrumentation",
   "opentelemetry-sdk",
 ]);
-assert.notEqual(
+assert.equal(
   otelCore.branchName,
   branchWith(defaultBranches, "opentelemetry-instrumentation").branchName,
-  "Python OTel core and contrib major families remain separate despite different stable and beta versions",
+  "OpenTelemetry major updates share their family despite independent core and instrumentation versions",
 );
 const otelContribRoutine = branchWith(defaultBranches, "opentelemetry-instrumentation-requests");
 assert.ok(
-  depNames(otelContribRoutine).includes("python-minor"),
-  "Python OTel beta routine updates do not require a stable-family version match",
+  !depNames(otelContribRoutine).includes("python-minor"),
+  "OpenTelemetry beta updates stay in their family rather than the generic Python group",
 );
-assert.notEqual(
+assert.equal(
   branchWith(defaultBranches, "pydantic").branchName,
   branchWith(defaultBranches, "pydantic-settings").branchName,
-  "pydantic-settings does not imply a major-version family",
+  "Pydantic and its settings integration share a family group",
 );
 
 const caddy = await branches(
@@ -470,6 +471,218 @@ baseline.packageRules = baseline.packageRules.filter(
     ].includes(rule.description),
 );
 const automergePolicy = mergeChildConfig(resolvedDefault, automergeConfig);
+const familyFiles = {
+  pep621: ["pyproject.toml", "tools/pyproject.toml"].map((packageFile) =>
+    manifest(
+      "pep621",
+      packageFile,
+      [
+        update("opentelemetry-api", "minor", "1.46.0", {
+          currentVersion: "1.45.0",
+          versioning: "pep440",
+        }),
+        update("opentelemetry-sdk", "patch", "1.45.1", {
+          currentVersion: "1.45.0",
+          versioning: "pep440",
+        }),
+        update("opentelemetry-instrumentation-flask", "minor", "0.67b0", {
+          currentVersion: "0.66b0",
+          versioning: "pep440",
+        }),
+        update("opentelemetry-propagator-b3", "patch", "1.45.1", {
+          currentVersion: "1.45.0",
+          versioning: "pep440",
+        }),
+        update("pydantic", "minor", "2.15.0", { currentVersion: "2.14.0", versioning: "pep440" }),
+        update("pydantic-settings", "patch", "2.16.1", {
+          currentVersion: "2.16.0",
+          versioning: "pep440",
+        }),
+        update("pydantic-core", "patch", "2.41.1", {
+          currentVersion: "2.41.0",
+          versioning: "pep440",
+        }),
+        update("flask", "patch", "3.1.1", { currentVersion: "3.1.0", versioning: "pep440" }),
+      ],
+      ["uv.lock"],
+    ),
+  ),
+};
+for (const policy of [resolvedDefault, automergePolicy]) {
+  const all = await branches("github", config(policy), familyFiles);
+  for (const { packageFile } of familyFiles.pep621) {
+    const project = matching(all, "pep621", packageFile, false);
+    const otel = branchWith(project, "opentelemetry-api");
+    assert.deepEqual(depNames(otel), [
+      "opentelemetry-api",
+      "opentelemetry-instrumentation-flask",
+      "opentelemetry-propagator-b3",
+      "opentelemetry-sdk",
+    ]);
+    assert.equal(
+      otel.automerge,
+      false,
+      "a coordinated pre-1.0 minor update keeps the whole family manual",
+    );
+    const pydantic = branchWith(project, "pydantic");
+    assert.deepEqual(depNames(pydantic), ["pydantic", "pydantic-settings"]);
+    assert.equal(pydantic.automerge, policy === automergePolicy);
+    assert.notEqual(pydantic.branchName, otel.branchName);
+    assert.notEqual(pydantic.branchName, branchWith(project, "pydantic-core").branchName);
+    assert.notEqual(otel.branchName, branchWith(project, "flask").branchName);
+    assert.deepEqual(packageFiles(otel), [packageFile]);
+    assert.deepEqual(packageFiles(pydantic), [packageFile]);
+    assert.equal(otel.minimumReleaseAge, "7 days");
+  }
+}
+const stableOtelFiles = structuredClone(familyFiles);
+for (const file of stableOtelFiles.pep621)
+  file.deps = file.deps.filter((dep) => !dep.depName.includes("instrumentation"));
+const stableOtel = await branches("github", config(automergePolicy), stableOtelFiles);
+assert.equal(
+  branchWith(stableOtel, "opentelemetry-api").automerge,
+  true,
+  "stable-family routine updates remain automergeable",
+);
+const earlySettings = await branches("github", config(automergePolicy), {
+  pep621: [
+    manifest("pep621", "pyproject.toml", [
+      update("pydantic", "minor", "2.15.0", { currentVersion: "2.14.0", versioning: "pep440" }),
+      update("pydantic-settings", "minor", "0.3.0", {
+        currentVersion: "0.2.0",
+        versioning: "pep440",
+      }),
+    ]),
+  ],
+});
+assert.equal(earlySettings.length, 1);
+assert.equal(
+  earlySettings[0].automerge,
+  false,
+  "Pydantic's pre-1.0 integration also keeps the coordinated family manual",
+);
+const familyMajors = await branches("github", config(automergePolicy), {
+  pep621: [
+    manifest("pep621", "pyproject.toml", [
+      update("opentelemetry-api", "major", "2.0.0", {
+        currentVersion: "1.45.0",
+        versioning: "pep440",
+      }),
+      update("opentelemetry-sdk", "patch", "1.45.1", {
+        currentVersion: "1.45.0",
+        versioning: "pep440",
+      }),
+      update("pydantic", "major", "3.0.0", { currentVersion: "2.14.0", versioning: "pep440" }),
+      update("pydantic-settings", "patch", "2.16.1", {
+        currentVersion: "2.16.0",
+        versioning: "pep440",
+      }),
+    ]),
+  ],
+});
+for (const [major, routine] of [
+  ["opentelemetry-api", "opentelemetry-sdk"],
+  ["pydantic", "pydantic-settings"],
+]) {
+  assert.equal(branchWith(familyMajors, major).automerge, false);
+  assert.equal(branchWith(familyMajors, routine).automerge, true);
+  assert.notEqual(
+    branchWith(familyMajors, major).branchName,
+    branchWith(familyMajors, routine).branchName,
+  );
+}
+const otherDatasources = await branches("github", config(automergePolicy), {
+  npm: [
+    manifest("npm", "package.json", [
+      update("opentelemetry-example", "patch", "1.0.1"),
+      update("pydantic", "patch", "1.0.1"),
+    ]),
+  ],
+});
+assert.equal(otherDatasources.length, 1);
+assert.equal(
+  otherDatasources[0].groupName,
+  "npm dependencies",
+  "family names only affect Python registry packages",
+);
+const familyOverrides = ["old", "latest"].map((lane) => ({
+  matchDatasources: ["pypi"],
+  matchPackageNames: ["opentelemetry-*"],
+  matchJsonata: [`managerData.depGroup = '${lane}'`],
+  groupName: `OpenTelemetry ${lane} compatibility`,
+}));
+const laneFiles = {
+  pep621: [
+    manifest(
+      "pep621",
+      "pyproject.toml",
+      ["old", "latest"].flatMap((depGroup) =>
+        ["opentelemetry-api", "opentelemetry-sdk"].map((name) => ({
+          ...update(name, "patch", "1.45.1", { currentVersion: "1.45.0", versioning: "pep440" }),
+          managerData: { depGroup },
+        })),
+      ),
+      ["uv.lock"],
+    ),
+  ],
+};
+const lanes = await branches(
+  "github",
+  config(automergePolicy, { packageRules: familyOverrides }),
+  laneFiles,
+);
+assert.equal(
+  lanes.length,
+  2,
+  "local compatibility lane names must not collapse onto the shared group slug",
+);
+for (const lane of lanes) {
+  assert.equal(new Set(lane.upgrades.map((upgrade) => upgrade.managerData.depGroup)).size, 1);
+  assert.deepEqual(depNames(lane), ["opentelemetry-api", "opentelemetry-sdk"]);
+}
+const alertCount = githubAlerts.length;
+for (const name of ["opentelemetry-api", "pydantic"]) {
+  securityNames.add(name);
+  githubAlerts.push({
+    security_vulnerability: {
+      package: { ecosystem: "pip", name },
+      first_patched_version: { identifier: "1.0.1" },
+      severity: "high",
+    },
+    security_advisory: {
+      identifiers: [],
+      summary: "Fixture",
+      description: "Fixture",
+      severity: "high",
+      references: [],
+    },
+  });
+}
+try {
+  for (const source of ["github", "osv", "both"]) {
+    const all = await branches(source, config(automergePolicy), {
+      pep621: [
+        manifest(
+          "pep621",
+          "pyproject.toml",
+          ["opentelemetry-api", "pydantic"].map((name) =>
+            update(name, "patch", "1.0.1", { versioning: "pep440" }),
+          ),
+        ),
+      ],
+    });
+    for (const name of ["opentelemetry-api", "pydantic"]) {
+      const security = branchWith(all, name);
+      assert.equal(security.isVulnerabilityAlert, true);
+      assert.equal(security.minimumReleaseAge, null);
+      assert.equal(security.automerge, true);
+      assert.equal(security.ignoreTests, false);
+    }
+  }
+} finally {
+  githubAlerts.splice(alertCount);
+  for (const name of ["opentelemetry-api", "pydantic"]) securityNames.delete(name);
+}
 const baselineAutomergePolicy = mergeChildConfig(baseline, automergeConfig);
 const controls = await branches("github", config(automergePolicy), {
   dockerfile: files.dockerfile,
