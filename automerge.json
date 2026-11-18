@@ -25,6 +25,26 @@
       "automerge": false,
       "groupName": "{{manager}} pre-1.0 minor updates",
       "groupSlug": "{{manager}}-pre-1-minor"
+    },
+    {
+      "description": "Keep OpenTelemetry coordinated when a pre-1.0 minor requires manual review",
+      "matchDatasources": ["pypi"],
+      "matchPackageNames": ["opentelemetry-*"],
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": "<1.0.0",
+      "automerge": false,
+      "groupName": "OpenTelemetry",
+      "groupSlug": null
+    },
+    {
+      "description": "Keep Pydantic coordinated when a pre-1.0 minor requires manual review",
+      "matchDatasources": ["pypi"],
+      "matchPackageNames": ["pydantic", "pydantic-settings"],
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": "<1.0.0",
+      "automerge": false,
+      "groupName": "Pydantic",
+      "groupSlug": null
     }
   ],
   "lockFileMaintenance": {

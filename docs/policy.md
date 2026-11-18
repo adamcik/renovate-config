@@ -52,12 +52,15 @@ grouping boundary because it can build several independent applications.
 [Shared-lockfile workspaces need an explicit override](workspaces.md).
 
 The inherited `config:best-practices` preset supplies upstream monorepo groups,
-including React, typescript-eslint, and OpenTelemetry. These retain their major-update
-groups within each project. Other routine major updates remain individual.
+including React and typescript-eslint. These retain their major-update groups within
+each project. Other routine major updates remain individual.
 
-Core and contrib OpenTelemetry families remain distinct. Their stable and beta version
-numbers do not have to match. Ordinary minor and patch updates join the project's
-routine group. The policy does not couple Pydantic and pydantic-settings.
+Python packages matching `opentelemetry-*` share an OpenTelemetry group, including
+instrumentation with independent beta versions. `pydantic` and `pydantic-settings` share
+a Pydantic group. Both families stay separate from the project's generic routine group.
+With the `automerge` preset, a pre-1.0 minor update makes its entire coordinated family
+PR manual. Repository-specific compatibility groups can override the family names
+without collapsing their branches together.
 
 Grouping does not solve compatibility constraints. Major and minor updates can land in
 different PRs, even within one release family. A migration that needs both requires an
